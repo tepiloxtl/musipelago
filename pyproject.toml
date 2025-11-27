@@ -4,13 +4,13 @@ build-backend = "hatchling.build"
 
 [project]
 name = "musipelago"
-version = "0.2.5"
+version = "0.2.6"
 authors = [
   { name="Tepiloxtl", email="tepiloxtl@tepiloxtl.net" },
 ]
-description = "A small example package"
+description = "Play Archipelago with your own music!"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 dependencies = [
     "kivy==2.3.1",
     "jinja2",
@@ -25,6 +25,9 @@ dependencies = [
 classifiers = [
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent",
+    "Development Status :: 3 - Alpha",
+    "Framework :: Kivy",
+    "License :: OSI Approved :: MIT License"
 ]
 license = "MIT"
 license-files = ["LICEN[CS]E*"]
@@ -46,5 +49,5 @@ include = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/pypa/sampleproject"
-Issues = "https://github.com/pypa/sampleproject/issues"
+Homepage = "https://github.com/tepiloxtl/musipelago"
+Issues = "https://github.com/tepiloxtl/musipelago/issues"
