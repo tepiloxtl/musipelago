@@ -1,0 +1,32 @@
+from typing import List, Dict, Any
+from dataclasses import dataclass
+from worlds.AutoWorld import PerGameCommonOptions
+from Options import Choice, OptionGroup, Toggle, Range
+
+# If youve ever gone to an options page and seen how sometimes options are grouped
+# This is that
+
+class StartingAlbum(Choice):
+    """
+    Determines starting album
+    It's in order you specified in UI/in JSON file
+    I'll figure some way to better represent them here at some point
+    """
+    display_name = "Starting Album"
+{% for album in apworld_data %}
+    option_album_{{ "%03d" | format(loop.index) }} = {{ loop.index }}
+{% endfor %}
+    default = 1
+
+class AllowPlayingAnyTrack(Toggle):
+    """
+    Allow to choose "Play Track" from the right panel
+    """
+    display_name = "Allow playing any track"
+    default = True
+
+
+@dataclass
+class MusipelagoOptions(PerGameCommonOptions):
+    StartingAlbum:            StartingAlbum
+    AllowPlayingAnyTrack:     AllowPlayingAnyTrack

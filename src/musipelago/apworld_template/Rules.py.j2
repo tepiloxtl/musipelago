@@ -1,0 +1,28 @@
+from worlds.generic.Rules import add_rule
+from typing import TYPE_CHECKING
+from .Types import AlbumType, album_id_to_title
+
+
+if TYPE_CHECKING:
+    from . import MusipelagoWorld
+
+# This is the last big thing to do (at least for me)
+# This is where you add item
+# These are omega simplified rules
+# There are a ton of different ways you can add rules from amoount of items you need to optional items
+# Theres also difficulty options and a bunch others
+# Id suggest going through a bunch of different ap worlds and seeing how they do the rules
+# Even better if its a game you know a lot about and can tell what you need to get to certain locations
+def set_rules(world: "MusipelagoWorld"):
+    player = world.player
+    options = world.options
+    # add_rule(world.multiworld.get_entrance("Start Game", player),
+    #          lambda state: state.has(album_id_to_title[AlbumType(options.StartingAlbum)], player))
+
+{% for album in apworld_data %}
+    add_rule(world.multiworld.get_entrance({{ ("Unlock " ~ ("[%s] [%s]" | format(album.artist | to_ascii, album.title | to_ascii))) | py_json }}, player),
+             lambda state: state.has({{ "[%s] [%s]" | format(album.artist | to_ascii, album.title | to_ascii) | py_json }}, player))
+{% endfor %}
+        
+    # Victory condition rule!
+    world.multiworld.completion_condition[player] = lambda state: state.has("Album finished!", player, {{ apworld_data | length }})

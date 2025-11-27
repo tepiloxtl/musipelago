@@ -1,0 +1,292 @@
+#:kivy 1.0.9
+#:import dp kivy.metrics.dp
+#:import ButtonBehavior kivy.uix.behaviors.ButtonBehavior
+
+<RootLayout>:
+    orientation: 'vertical'
+
+    ListContainer:
+        id: list_container
+        size_hint_y: 1      # Stretch to container
+
+    BoxLayout:
+        id: playback_bar
+        size_hint_y: None
+        height: '64dp' # Increased slightly for better spacing
+        orientation: 'horizontal'
+        padding: '5dp'
+        spacing: '10dp'
+        
+        canvas.before:
+            Color:
+                rgba: 0.12, 0.12, 0.12, 1
+            Rectangle:
+                pos: self.pos
+                size: self.size
+
+        # --- LEFT: TRANSPORT CONTROLS ---
+        BoxLayout:
+            id: transport_controls_box
+            size_hint_x: None
+            width: '100dp' # Just enough for Stop (40) + Play (48) + Spacing (10)
+            spacing: '5dp'
+            pos_hint: {'center_y': 0.5}
+
+            # Stop Button
+            IconButton:
+                size_hint: None, None
+                size: '48dp', '48dp'
+                pos_hint: {'center_y': 0.5}
+                background_normal: '' 
+                background_color: (0, 0, 0, 0)
+                icon_source: 'resources/stop.png'
+                on_release: root.on_stop_click()
+
+            # Play/Pause Button
+            IconButton:
+                id: play_pause_button
+                size_hint: None, None
+                size: '48dp', '48dp'
+                pos_hint: {'center_y': 0.5}
+                background_normal: ''
+                background_color: (0, 0, 0, 0)
+                icon_source: 'resources/pause.png' if root.is_playing else 'resources/play.png'
+                on_release: root.on_play_pause_click()
+
+
+        # 2. PLUGIN SLOT (Takes middle space)
+        GenericPlaybackInfo: # Instantiated via Python, but defined here for layout
+            id: playback_center
+            size_hint_x: 1
+            orientation: 'horizontal'
+            padding: '5dp'
+            # Python code will replace its content with the actual widget if needed, 
+            # but we use its space.
+
+
+        # 3. VOLUME CONTROL GROUP (Right-most)
+        BoxLayout:
+            size_hint_x: None
+            width: '210dp' # Reduced from 210dp (210 - 30dp Label width)
+            spacing: '5dp'
+            pos_hint: {'center_y': 0.5}
+
+            # Mute/Speaker Button (48dp)
+            IconButton:
+                size_hint: None, None
+                size: '48dp', '48dp'
+                pos_hint: {'center_y': 0.5}
+                background_normal: ''
+                background_color: (0, 0, 0, 0)
+                icon_source: 'resources/speaker_muted.png' if root.is_muted else 'resources/speaker.png'
+                on_release: root.on_mute_click()
+
+            # --- REMOVED 'Vol:' Label ---
+
+            # Slider (Now automatically takes the remaining 132dp of width)
+            Slider:
+                id: volume_slider
+                min: 0
+                max: 100
+                value: 50
+                size_hint_x: 1 # Let the slider fill the remaining space
+                on_value: root.on_volume_change(self.value)
+
+        IconButton:
+            size_hint: None, None
+            size: '48dp', '48dp'
+            pos_hint: {'center_y': 0.5}
+            icon_source: 'resources/settings.png' # Need a settings icon
+            on_release: root.on_settings_icon_click()
+
+    Label:
+        id: status_bar
+        text: root.status_text
+        markup: True
+        size_hint_y: None
+        height: '30dp'
+        canvas.before:
+            Color:
+                rgba: 0.1, 0.1, 0.1, 1
+            Rectangle:
+                pos: self.pos
+                size: self.size
+        
+    Label:
+        id: ap_status_bar
+        text: root.ap_status_text  # Will bind to a new property
+        size_hint_y: None
+        height: '30dp'
+        canvas.before:
+            Color:
+                rgba: 0.1, 0.1, 0.15, 1
+            Rectangle:
+                pos: self.pos
+                size: self.size
+
+<GenericPlaybackInfo>:
+    orientation: 'horizontal'
+    spacing: '10dp'
+    
+    # 1. Album Art
+    AsyncImageWithHeaders:
+        web_source: root.art_source
+        size_hint: None, None
+        size: '54dp', '54dp'
+        pos_hint: {'center_y': 0.5}
+
+    # 2. Text Info
+    BoxLayout:
+        orientation: 'vertical'
+        size_hint_x: 0.4
+        valign: 'middle'
+        
+        Label:
+            text: root.track_title
+            font_size: '16sp'
+            bold: True
+            shorten: True
+            shorten_from: 'right'
+            text_size: self.width, None
+            halign: 'left'
+        
+        Label:
+            text: root.artist_album
+            font_size: '12sp'
+            color: 0.7, 0.7, 0.7, 1
+            shorten: True
+            shorten_from: 'right'
+            text_size: self.width, None
+            halign: 'left'
+
+    # 3. Progress Bar
+    BoxLayout:
+        orientation: 'vertical'
+        size_hint_x: 0.6
+        padding: [0, '15dp', 0, '15dp'] # Push bar towards center vertically
+
+        ProgressBar:
+            max: 100
+            value: root.progress_value
+            size_hint_y: None
+            height: '10dp'
+            
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: '15dp'
+            
+            Label:
+                text: root.current_time
+                font_size: '10sp'
+                halign: 'left'
+                text_size: self.width, None
+            
+            Label:
+                text: root.total_time
+                font_size: '10sp'
+                halign: 'right'
+                text_size: self.width, None
+
+<ListContainer>:
+    orientation: 'horizontal'
+    spacing: 10
+    padding: 10
+    
+    RecycleView:
+        id: album_rv
+        data: root.list_one_data
+        viewclass: 'CustomListItem'
+
+        canvas.before:
+            Color:
+                rgba: 0.15, 0.15, 0.15, 1
+            Rectangle:
+                pos: self.pos
+                size: self.size
+
+        RecycleBoxLayout:
+            default_size: None, '100dp'
+            default_size_hint: 1, None
+            size_hint_y: None
+            height: self.minimum_height
+            orientation: 'vertical'
+
+    RecycleView:
+        id: track_rv
+        data: root.list_two_data
+        viewclass: 'CustomListItem'
+
+        canvas.before:
+            Color:
+                rgba: 0.15, 0.15, 0.15, 1
+            Rectangle:
+                pos: self.pos
+                size: self.size
+
+        RecycleBoxLayout:
+        
+            default_size: None, '100dp'
+            default_size_hint: 1, None
+            size_hint_y: None
+            height: self.minimum_height
+            orientation: 'vertical'
+
+<CustomListItem>:
+    orientation: 'horizontal'
+    padding: '10dp'
+    spacing: '10dp'
+    # This now points to the passthrough method on RootLayout
+    on_release: app.root.on_list_item_click(self)
+
+    opacity: 1 if root.is_owned else 0.5
+
+    AsyncImageWithHeaders:
+        web_source: root.image_source
+        size_hint_x: None
+        width: self.height
+    BoxLayout:
+        orientation: 'vertical'
+
+        Label:
+            text: root.text_line_1
+            font_size: '18sp'
+            text_size: self.width, None
+            halign: 'left'
+            valign: 'middle'
+            color: (0.2, 1, 0.2, 1) if root.is_finished or root.all_tracks_finished else (0.99, 0.72, 0.07, 1) if root.has_hint else (1, 1, 1, 1)
+
+        Label:
+            text: root.text_line_2
+            font_size: '14sp'
+            text_size: self.width, None
+            halign: 'left'
+            valign: 'middle'
+            
+        Label:
+            text: root.text_line_3
+            font_size: '12sp'
+            color: 0.8, 0.8, 0.8, 1
+            text_size: self.width, None
+            halign: 'left'
+            valign: 'middle'
+
+        Label:
+            text: root.text_line_4
+            font_size: '12sp'
+            color: 0.8, 0.8, 0.8, 1
+            text_size: self.width, None
+            halign: 'left'
+            valign: 'middle'
+    
+    Button:
+        text: '...'
+        size_hint_x: None
+        width: '48dp'
+        
+        # This now points to the passthrough method
+        on_release: root.handle_menu_click(self)
+
+<ItemMenu>:
+    size_hint_x: None
+    width: '200dp'

@@ -1,0 +1,207 @@
+#:kivy 1.0.9
+#:import dp kivy.metrics.dp
+# musipelagoapwgen.kv
+<RootLayout>:
+    orientation: 'vertical'
+
+    BoxLayout:
+        id: search_container
+        orientation: 'horizontal'
+        size_hint_y: None  # Don't let it stretch vertically
+        height: '48dp'
+        padding: '4dp'
+        spacing: '5dp'
+
+        Spinner:
+            id: search_type_spinner
+            text: 'album'
+            values: ['album', 'artist', 'playlist']
+            size_hint_x: 0.2
+
+        TextInput:
+            id: search_input
+            hint_text: 'Search...'
+            size_hint_x: 0.5
+            multiline: False
+            write_tab: False
+
+        Button:
+            text: 'Search'
+            size_hint_x: 0.2
+            # Pass the input values to the Python function
+            on_press: root.on_search_click(search_input.text, search_type_spinner.text)
+
+        Button:
+            text: '...'
+            size_hint_x: None
+            width: self.height
+            on_press: root.on_settings_click()
+
+    ListContainer:
+        id: list_container
+        size_hint_y: 1      # Stretch to container
+
+    Button:
+        text: 'Generate'
+        size_hint_y: None # Don't stretch
+        height: '48dp'
+        on_press: root.on_generate_click()
+
+    Label:
+        id: status_bar
+        text: root.status_text
+        size_hint_y: None
+        height: '30dp'
+        canvas.before:
+            Color:
+                rgba: 0.1, 0.1, 0.1, 1
+            Rectangle:
+                pos: self.pos
+                size: self.size
+
+<ListContainer>:
+    orientation: 'horizontal'
+    spacing: 10
+    padding: 10
+    
+    RecycleView:
+        id: search_rv
+        data: root.list_one_data
+        viewclass: 'CustomListItem'
+
+        canvas.before:
+            Color:
+                rgba: 0.15, 0.15, 0.15, 1
+            Rectangle:
+                pos: self.pos
+                size: self.size
+
+        RecycleBoxLayout:
+            default_size: None, '100dp'
+            default_size_hint: 1, None
+            size_hint_y: None
+            height: self.minimum_height
+            orientation: 'vertical'
+
+    RecycleView:
+        data: root.list_two_data
+        viewclass: 'CustomListItem'
+
+        canvas.before:
+            Color:
+                rgba: 0.15, 0.15, 0.15, 1
+            Rectangle:
+                pos: self.pos
+                size: self.size
+
+        RecycleBoxLayout:
+        
+            default_size: None, '100dp'
+            default_size_hint: 1, None
+            size_hint_y: None
+            height: self.minimum_height
+            orientation: 'vertical'
+
+<CustomListItem>:
+    orientation: 'horizontal'
+    padding: '10dp'
+    spacing: '10dp'
+    AsyncImageWithHeaders:
+        web_source: root.image_source
+        size_hint_x: None
+        width: self.height
+    BoxLayout:
+        orientation: 'vertical'
+
+        Label:
+            text: root.text_line_1
+            font_size: '18sp'
+            text_size: self.width, None
+            halign: 'left'
+            valign: 'middle'
+
+        Label:
+            text: root.text_line_2
+            font_size: '14sp'
+            text_size: self.width, None
+            halign: 'left'
+            valign: 'middle'
+            
+        Label:
+            text: root.text_line_3
+            font_size: '12sp'
+            color: 0.8, 0.8, 0.8, 1
+            text_size: self.width, None
+            halign: 'left'
+            valign: 'middle'
+
+        Label:
+            text: root.text_line_4
+            font_size: '12sp'
+            color: 0.8, 0.8, 0.8, 1
+            text_size: self.width, None
+            halign: 'left'
+            valign: 'middle'
+    
+    Button:
+        text: '...'
+        size_hint_x: None
+        width: '48dp'
+        on_release: root.open_menu(self)
+
+<ItemMenu>:
+    size_hint_x: None
+    width: '200dp'
+
+<GeneratePopup>:
+    title: "Generation Options"
+    size_hint: 0.8, None
+    auto_dismiss: False
+    height: generate_box.height + dp(64)
+
+    BoxLayout:
+        id: generate_box
+        orientation: 'vertical'
+        padding: '10dp'
+        spacing: '10dp'
+        size_hint_y: None
+        height: self.minimum_height
+
+        Label:
+            text: 'APWorld Name:'
+            size_hint_y: None
+            height: '24dp'
+            halign: 'left'
+            text_size: self.width, None
+
+        TextInput:
+            id: apworld_name_input
+            hint_text: 'e.g., WeirdAl_Tepiloxtl'
+            size_hint_y: None
+            height: '40dp'
+            multiline: False
+            write_tab: False
+
+        Label:
+            text: 'This name needs to be unique for every unique APWorld. I suggest using Artist_PlayerName or some other descriptive name'
+            font_size: '12sp'
+            color: 0.8, 0.8, 0.8, 1
+            size_hint_y: None
+            height: self.texture_size[1]
+            text_size: self.width, None # Enable word wrapping
+            valign: 'top'
+            halign: 'left'
+
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: '44dp'
+            spacing: '10dp'
+
+            Button:
+                text: 'Cancel'
+                on_release: root.dismiss()
+
+            Button:
+                text: 'Generate'
+                on_release: root.on_popup_generate(apworld_name_input.text)

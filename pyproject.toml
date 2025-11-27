@@ -1,0 +1,50 @@
+[build-system]
+requires = ["hatchling >= 1.26"]
+build-backend = "hatchling.build"
+
+[project]
+name = "musipelago"
+version = "0.2.5"
+authors = [
+  { name="Tepiloxtl", email="tepiloxtl@tepiloxtl.net" },
+]
+description = "A small example package"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "kivy==2.3.1",
+    "jinja2",
+    "requests",
+    "python-dotenv",
+    "plyer",
+    "websockets",
+    "mutagen",
+    "ffpyplayer",
+    "unidecode"
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+license = "MIT"
+license-files = ["LICEN[CS]E*"]
+
+[project.scripts]
+# Syntax: command-name = "package.module:function"
+musipelago-client = "musipelago.musipelago_client:main"
+musipelago-gen = "musipelago.musipelago_apworld_gen:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/musipelago"]
+
+# Hatchling includes non-python files (like .kv) automatically 
+# if they are inside the package and not git-ignored. 
+# But to be 100% safe, we can explicitly include them:
+[tool.hatch.build.targets.sdist]
+include = [
+    "src/musipelago"
+]
+
+[project.urls]
+Homepage = "https://github.com/pypa/sampleproject"
+Issues = "https://github.com/pypa/sampleproject/issues"
