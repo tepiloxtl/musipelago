@@ -1267,7 +1267,9 @@ class MusipelagoClientApp(App):
             self.root.ids.list_container.list_two_data = []
 
             if self.ap_client:
-                Logger.info("AP: Main thread setup complete. Sending initial hint request.")
+                Logger.info("AP: Data loading complete.")
+                self.ap_client.app_is_ready = True
+                self.ap_client._sync_owned_items()
                 self.ap_client.send_chat_message("!hint")
         except Exception as e:
             Logger.error(f"FATAL ERROR in _populate_initial_lists: {e}", exc_info=True)
@@ -1413,13 +1415,13 @@ class MusipelagoClientApp(App):
         except Exception as e:
             Logger.error(f"AP: Failed to build name_to_uri map: {e}"); return
         
-        # 2. Set the "ready" flag on the client
-        self.ap_client.app_is_ready = True
+        # # 2. Set the "ready" flag on the client
+        # self.ap_client.app_is_ready = True
         
-        # 3. Manually call _sync_owned_items to process the backlog of items
-        #    that were received before the app was ready.
-        Logger.info("AP: App is ready. Processing item backlog...")
-        self.ap_client._sync_owned_items()
+        # # 3. Manually call _sync_owned_items to process the backlog of items
+        # #    that were received before the app was ready.
+        # Logger.info("AP: App is ready. Processing item backlog...")
+        # self.ap_client._sync_owned_items()
             
         # 4. Now we build the *initial* set of owned albums from the (now populated) list
         owned_item_names = self.ap_client.owned_item_names
