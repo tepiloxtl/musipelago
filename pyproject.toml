@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "musipelago"
-version = "0.2.7"
+version = "0.2.8"
 authors = [
   { name="Tepiloxtl", email="tepiloxtl@tepiloxtl.net" },
 ]
@@ -19,7 +19,7 @@ dependencies = [
     "plyer",
     "websockets",
     "mutagen",
-    "ffpyplayer",
+    "python-vlc",
     "unidecode"
 ]
 classifiers = [
@@ -38,6 +38,9 @@ musipelago-gen = "musipelago.musipelago_apworld_gen:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/musipelago"]
+exclude = [
+    "src/musipelago/vlc_engine"
+]
 
 # Hatchling includes non-python files (like .kv) automatically 
 # if they are inside the package and not git-ignored. 
@@ -45,6 +48,9 @@ packages = ["src/musipelago"]
 [tool.hatch.build.targets.sdist]
 include = [
     "src/musipelago"
+]
+exclude = [
+    "src/musipelago/vlc_engine"
 ]
 
 [project.urls]

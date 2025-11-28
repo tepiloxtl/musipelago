@@ -3,6 +3,7 @@ output
 musipelago.json
 musipelago_gen.json
 .env
+src/musipelago/vlc_engine/
 
 
 __pycache__/

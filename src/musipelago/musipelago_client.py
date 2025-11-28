@@ -81,7 +81,7 @@ from musipelago.utils_client import (
     filter_to_ascii, KIVY_ICON, global_exception_handler
 )
 from musipelago.plugin_loader import PluginManager
-from musipelago.ff_audio_player import GenericAudioPlayer
+from musipelago.vlc_audio_player import GenericAudioPlayer
 from musipelago.backends import (
     GenericAlbum, GenericArtist, GenericPlaylist, GenericTrack
 )
