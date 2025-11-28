@@ -664,9 +664,11 @@ class RootLayout(BoxLayout):
                 Logger.info(f"UI updated hint status for album: {album_data['raw_title']}"); break
 
     def update_album_all_tracks_finished_status(self, album_uri, all_finished_status):
+        # Logger.info(f"DEBUG: Requesting UI update for {album_uri} -> Finished={all_finished_status}")
         album_rv = self.ids.list_container.ids.album_rv  
         for i, album_data in enumerate(album_rv.data):
             if album_data['raw_uri'] == album_uri:
+                # Logger.info(f"DEBUG: > Found matching UI Item: {album_data['text_line_1']}")
                 if album_data.get('all_tracks_finished') == all_finished_status: break
                 album_data['all_tracks_finished'] = all_finished_status; album_rv.refresh_from_data()
                 Logger.info(f"UI updated 'all_tracks_finished' for album: {album_data['raw_title']}"); break
@@ -684,6 +686,8 @@ class RootLayout(BoxLayout):
         if not container_data:
             Logger.warning(f"UI: Cannot check completion for {container_uri}, not in cache.")
             return
+        
+        # Logger.info(f"DEBUG: Checking completion for container: {container_data.title} ({container_uri})")
 
         all_tracks_complete = True
         # raw_items is now a list of GenericTrack
@@ -698,8 +702,11 @@ class RootLayout(BoxLayout):
             
             track_data = app.track_progress.get(track_uri)
             if not track_data or not track_data.get('is_finished', False):
+                # Logger.info(f"DEBUG: > Incomplete track found: {track.title} ({track_uri})")
                 all_tracks_complete = False
                 break 
+        # if all_tracks_complete:
+        #     Logger.info(f"DEBUG: > ALL TRACKS COMPLETE for {container_data.title}")
         self.update_album_all_tracks_finished_status(container_uri, all_tracks_complete)
 
     def update_track_hint_text(self, track_uri, hint_text):
@@ -724,14 +731,18 @@ class RootLayout(BoxLayout):
                 track_prog = app.track_progress.get(track_uri)
                 if track_prog:
                     parent_uri = track_prog.get('parent_uri')
-                    if parent_uri: self.check_and_update_album_completion(parent_uri)
+                    # Logger.info(f"DEBUG: Track {track_uri} finished.")
+                    # Logger.info(f"DEBUG: > Mapped to Parent Album: {parent_uri}")
+                    if parent_uri:
+                        self.check_and_update_album_completion(parent_uri)
+                    else:
+                        Logger.warning(f"DEBUG: Track {track_uri} has NO parent_uri!")
             except Exception as e:
                 Logger.error(f"UI: Failed to check parent album completion: {e}")
 
 
-# --- ArchipelagoClient (Unchanged) ---
+# --- ArchipelagoClient ---
 class ArchipelagoClient:
-    # ... (This class is 100% unchanged) ...
     def __init__(self, app, uri, name, password, game_name, cache_dir):
         self.app = app; self.uri = uri; self.name = name; self.password = password
         self.game_name = game_name; self.cache_dir = cache_dir
@@ -1252,6 +1263,7 @@ class MusipelagoClientApp(App):
                     'is_owned': is_owned,
                     'has_hint': album_has_hint,
                     'all_tracks_finished': all_tracks_complete,
+                    'is_finished': False,
                     'list_id': uri,
                     'raw_item_type': 'album', # UI still uses 'album'
                     'raw_uri': uri,
