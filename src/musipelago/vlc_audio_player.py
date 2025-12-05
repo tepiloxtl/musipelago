@@ -17,34 +17,34 @@ else:
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 VLC_ENGINE_PATH = os.path.join(BASE_DIR, 'vlc_engine')
+print(VLC_ENGINE_PATH)
 VLC_AVAILABLE = False
 
 # 2. Check if we have a bundled engine
 if os.path.exists(VLC_ENGINE_PATH):
     Logger.info("AudioPlayer: Found bundled VLC engine.")
-    
-    # Set Plugin Path ONLY if using bundled engine
     os.environ['VLC_PLUGIN_PATH'] = os.path.join(VLC_ENGINE_PATH, 'plugins')
-    
-    # Windows: Add DLL Directory
-    if platform.system() == 'Windows' and hasattr(os, 'add_dll_directory'):
-        try:
-            os.add_dll_directory(VLC_ENGINE_PATH)
-        except Exception:
-            pass
 
-    # Force load bundled DLLs
+    # Windows needs to believe we are IN the folder to resolve dependencies.
+    original_cwd = os.getcwd()
     try:
-        if platform.system() == 'Windows':
-            ctypes.CDLL(os.path.join(VLC_ENGINE_PATH, 'libvlccore.dll'))
-            ctypes.CDLL(os.path.join(VLC_ENGINE_PATH, 'libvlc.dll'))
-        # On Linux/Mac bundled libs usually require LD_LIBRARY_PATH set before launch
-        # or relative RPATHs, but basic import often works if paths are correct.
+        Logger.info(f"AudioPlayer: Context switch to {VLC_ENGINE_PATH}")
+        os.chdir(VLC_ENGINE_PATH)
         
+        if platform.system() == 'Windows':
+            # Load Core first, then Main
+            ctypes.CDLL(r".\libvlccore.dll")
+            ctypes.CDLL(r".\libvlc.dll")
+            
         import vlc
         VLC_AVAILABLE = True
+        Logger.info("AudioPlayer: Bundled VLC loaded.")
+        
     except Exception as e:
         Logger.error(f"AudioPlayer: Failed to load bundled VLC: {e}")
+    finally:
+        # CRITICAL: Restore original directory immediately
+        os.chdir(original_cwd)
 
 # 3. Fallback: Try System VLC
 if not VLC_AVAILABLE:
