@@ -59,6 +59,7 @@ from kivy.uix.behaviors import ButtonBehavior
 from kivy.uix.slider import Slider
 from kivy.uix.textinput import TextInput
 from kivy.uix.gridlayout import GridLayout
+from kivy.uix.checkbox import CheckBox
 from kivy.animation import Animation
 from kivy.graphics import Color, RoundedRectangle
 from kivy.storage.jsonstore import JsonStore
@@ -268,6 +269,17 @@ class ArchipelagoLoginPopup(Popup):
         file_box.add_widget(self.file_status_label)
         
         layout.add_widget(file_box)
+
+        exp_box = BoxLayout(orientation='horizontal', size_hint_y=None, height='30dp', spacing='10dp')
+        # exp_box.add_widget(Label(size_hint_x=0.4)) 
+        
+        self.exp_label = Label(text="[EXPERIMENT]Goal by listening to all tracks", halign='left', size_hint_x=0.5)
+        self.exp_checkbox = CheckBox(size_hint_x=0.1, active=False)
+        
+        exp_box.add_widget(self.exp_label)
+        exp_box.add_widget(self.exp_checkbox)
+        layout.add_widget(exp_box)
+
         layout.add_widget(BoxLayout(size_hint_y=1.0)) # Spacer
 
         self.status_label = Label(text="", size_hint_y=None, height='30dp')
@@ -287,6 +299,7 @@ class ArchipelagoLoginPopup(Popup):
                 self.address_input.text = data.get('address', '')
                 self.name_input.text = data.get('name', '')
                 self.password_input.text = data.get('password', '')
+                self.exp_checkbox.active = data.get('experimental_victory', False)
                 json_path = data.get('json_path', '')
                 if json_path and os.path.exists(json_path):
                     self.json_file_path = json_path
@@ -333,6 +346,7 @@ class ArchipelagoLoginPopup(Popup):
         address = self.address_input.text.strip()
         name = self.name_input.text.strip()
         password = self.password_input.text
+        use_experimental_victory = self.exp_checkbox.active
         
         if not address:
             self.status_label.text = "Error: Address field is required."; return
@@ -351,7 +365,8 @@ class ArchipelagoLoginPopup(Popup):
             address, 
             name, 
             password, 
-            self.json_file_path
+            self.json_file_path,
+            use_experimental_victory
         )
         
     def on_connection_success(self):
@@ -727,6 +742,8 @@ class RootLayout(BoxLayout):
                 Logger.info(f"UI updated for track: {track_uri}"); break
         if track_updated:
             app = App.get_running_app()
+            if app.ap_client:
+                app.ap_client.check_victory()
             try:
                 track_prog = app.track_progress.get(track_uri)
                 if track_prog:
@@ -743,7 +760,7 @@ class RootLayout(BoxLayout):
 
 # --- ArchipelagoClient ---
 class ArchipelagoClient:
-    def __init__(self, app, uri, name, password, game_name, cache_dir):
+    def __init__(self, app, uri, name, password, game_name, cache_dir, experimental_victory=False):
         self.app = app; self.uri = uri; self.name = name; self.password = password
         self.game_name = game_name; self.cache_dir = cache_dir
         self.ws = None; self.handshake_complete = False; self.error_reported = False
@@ -755,7 +772,9 @@ class ArchipelagoClient:
         self.owned_item_names = set(); self.id_to_item_name = {}
         self.id_to_location_name = {}
         self.app_is_ready = False
+        self.experimental_victory = experimental_victory
         self.victory_reported = False
+    
     def start_client_loop(self):
         loop = None
         try:
@@ -781,6 +800,7 @@ class ArchipelagoClient:
         except Exception as e:
             Logger.error(f"AP: Websocket loop error: {e}")
             self.report_error(f"{e}")
+    
     def _sync_owned_items(self):
         """
         Resolves item IDs into names. This is the core
@@ -822,33 +842,84 @@ class ArchipelagoClient:
                         Clock.schedule_once(lambda dt, u=uri: self.app.root.update_album_ui(u))
                     else:
                         Logger.warning(f"AP: Received item '{item_name}' but its URI '{uri}' is not in the album cache.")
-                    
-        victory_item_name = "Album finished!"
-        victory_item_id = None
         
-        # Find the ID from the map
-        # (Optimization: In a real app, cache this ID so we don't loop every time)
-        for i_id, i_name in self.id_to_item_name.items():
-            if i_name == victory_item_name:
-                victory_item_id = i_id
-                break
+        self.check_victory()
+        # victory_item_name = "Album finished!"
+        # victory_item_id = None
         
-        if victory_item_id:
-            # Count how many times we have received this specific item ID
-            # We look at the raw received_items list, which contains duplicates
-            victory_count = sum(1 for item in self.received_items if item.get('item') == victory_item_id)
+        # # Find the ID from the map
+        # # (Optimization: In a real app, cache this ID so we don't loop every time)
+        # for i_id, i_name in self.id_to_item_name.items():
+        #     if i_name == victory_item_name:
+        #         victory_item_id = i_id
+        #         break
+        
+        # if victory_item_id:
+        #     # Count how many times we have received this specific item ID
+        #     # We look at the raw received_items list, which contains duplicates
+        #     victory_count = sum(1 for item in self.received_items if item.get('item') == victory_item_id)
             
-            total_albums = len(self.app.ordered_album_uris)
+        #     total_albums = len(self.app.ordered_album_uris)
             
-            # Logger.debug(f"AP: Victory Check: {victory_count}/{total_albums} albums finished.")
+        #     # Logger.debug(f"AP: Victory Check: {victory_count}/{total_albums} albums finished.")
 
-            if total_albums > 0 and victory_count >= total_albums:
-                if not self.victory_reported:
-                    Logger.info(f"AP: VICTORY! All {total_albums} albums finished.")
-                    self.app.show_toast("VICTORY! All albums finished!")
-                    self.send_status_update(30) # ClientStatus.GOAL
-                    self.victory_reported = True
+        #     if total_albums > 0 and victory_count >= total_albums:
+        #         if not self.victory_reported:
+        #             Logger.info(f"AP: VICTORY! All {total_albums} albums finished.")
+        #             self.app.show_toast("VICTORY! All albums finished!")
+        #             self.send_status_update(30) # ClientStatus.GOAL
+        #             self.victory_reported = True
     
+    def check_victory(self):
+        """
+        Checks if the victory condition is met based on the selected mode.
+        """
+        if self.victory_reported: return
+        if not self.app_is_ready: return
+
+        is_victory = False
+
+        if self.experimental_victory:
+            # --- MODE A: EXPERIMENTAL (All Tracks Played) ---
+            # Iterate through all tracks in the game data.
+            # Note: We iterate app.track_progress to ensure we check every known track.
+            
+            total_tracks = len(self.app.track_progress)
+            finished_tracks = 0
+            
+            for track_uri, data in self.app.track_progress.items():
+                if data.get('is_finished', False):
+                    finished_tracks += 1
+            
+            # Logger.debug(f"AP: Victory Check (Exp): {finished_tracks}/{total_tracks} tracks.")
+            
+            if total_tracks > 0 and finished_tracks >= total_tracks:
+                is_victory = True
+
+        else:
+            # --- MODE B: STANDARD (Album Finished Items) ---
+            victory_item_name = "Album finished!"
+            victory_item_id = None
+            
+            for i_id, i_name in self.id_to_item_name.items():
+                if i_name == victory_item_name:
+                    victory_item_id = i_id
+                    break
+            
+            if victory_item_id:
+                # Count received items matching the ID
+                victory_count = sum(1 for item in self.received_items if item.get('item') == victory_item_id)
+                total_albums = len(self.app.ordered_album_uris)
+                
+                if total_albums > 0 and victory_count >= total_albums:
+                    is_victory = True
+
+        if is_victory:
+            Logger.info("AP: VICTORY CONDITION MET!")
+            self.app.show_toast("VICTORY! Goal Completed!")
+            self.send_status_update(30) # ClientStatus.GOAL
+            self.victory_reported = True
+
     def send_status_update(self, status_code):
         if not self.ws or not self.loop: return
         asyncio.run_coroutine_threadsafe(self._async_send_status_update(status_code), self.loop)
@@ -1102,13 +1173,14 @@ class MusipelagoClientApp(App):
             self.client_host_ui.stop_polling()
         Logger.info("AP: App closing.")
 
-    def on_ap_form_submitted(self, address, name, password, json_path):
+    def on_ap_form_submitted(self, address, name, password, json_path, use_experimental_victory=False):
         """
         Called by ArchipelagoLoginPopup. This is step 1.
         It now *only* starts the plugin login.
         """
-        self.ap_address = address; self.ap_name = name;
+        self.ap_address = address; self.ap_name = name
         self.ap_password = password; self.json_path = json_path
+        self.use_experimental_victory = use_experimental_victory
         
         game_data, backend_name, backend_data = self.parse_game_file(json_path)
         
@@ -1358,7 +1430,7 @@ class MusipelagoClientApp(App):
         """
         try:
             self.store.put('connection_info',
-                address=address, name=name, password=password, json_path=json_path
+                address=address, name=name, password=password, json_path=json_path, experimental_victory=self.use_experimental_victory
             )
         except Exception as e:
             Logger.error(f"Cache: Failed to save settings: {e}")
@@ -1368,7 +1440,8 @@ class MusipelagoClientApp(App):
         base_name = os.path.basename(json_path)
         game_name, _ = os.path.splitext(base_name)
         Logger.info(f"Connecting to AP server at {address} as {name} for game {game_name}...")
-        self.ap_client = ArchipelagoClient(self, address, name, password, game_name, self.cache_dir)
+        self.ap_client = ArchipelagoClient(self, address, name, password, game_name, self.cache_dir,
+                                           experimental_victory=self.use_experimental_victory)
         threading.Thread(target=self.ap_client.start_client_loop, daemon=True).start()
 
     def on_connection_success(self, *args):

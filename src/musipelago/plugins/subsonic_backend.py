@@ -640,13 +640,69 @@ class SubsonicClientHost(AbstractClientHost):
     def on_device_select(self, name): pass
     def on_menu_action(self, txt, item):
         if txt == "OPEN_MENU": 
-            # (Import and open generic menu)
+            # Import locally to avoid circular dependency issues
             menu = ItemMenu(caller=item, auto_width=False, width=dp(200))
-            # ... (add buttons) ...
+            menu.clear_widgets()
+            
+            # 1. Play Button
+            play_text = "Play Album" if item.raw_item_type == 'album' else "Play Track"
+            btn = Button(text=play_text, size_hint_y=None, height=dp(44))
+            btn.bind(on_release=lambda x: menu.on_option_select(play_text))
+            menu.add_widget(btn)
+            
+            # 2. Hint Button
+            btn_hint = Button(text="Hint", size_hint_y=None, height=dp(44))
+            btn_hint.bind(on_release=lambda x: menu.on_option_select("Hint"))
+            menu.add_widget(btn_hint)
+            
+            # 3. Cheat Button (Send Location)
+            if self.app.cheat_mode:
+                cheat_text = f"[color=ff8888]Send Location[/color]"
+                btn_send = Button(text=cheat_text, markup=True, size_hint_y=None, height=dp(44))
+                btn_send.bind(on_release=lambda x: menu.on_option_select("Send Location"))
+                menu.add_widget(btn_send)
+            
             menu.open(item.ids.menu_button)
-        elif txt == "Play Album": self._play_album(item.raw_uri)
-        elif txt == "Play Track": self._play_track(item.raw_uri, item.raw_title)
-        # ...
+            return
+
+        # --- ACTION HANDLERS ---
+
+        elif txt == "Play Album": 
+            self._play_album(item.raw_uri)
+            
+        elif txt == "Play Track": 
+            self._play_track(item.raw_uri, item.raw_title)
+            
+        elif txt == "Hint":
+            if self.app.ap_client: 
+                self.app.ap_client.send_chat_message(f"!hint {item.text_line_4}")
+            else:
+                self.app.show_toast("Not connected to Archipelago.")
+
+        elif txt == "Send Location":
+            track_uri = item.raw_uri
+            track_data = self.app.track_progress.get(track_uri, {})
+            location_id = track_data.get('location_id')
+            
+            # --- DEBUG LOGGING ---
+            Logger.info(f"CHEAT: Attempting to send check for {track_uri}")
+            Logger.info(f"CHEAT: > Location ID: {location_id}")
+            Logger.info(f"CHEAT: > AP Client Connected: {bool(self.app.ap_client)}")
+            # ---------------------
+            
+            if location_id and self.app.ap_client:
+                self.app.ap_client.send_location_check(location_id)
+                self.app.show_toast(f"CHEAT: Sent check for {item.raw_title}")
+                
+                # Manually update local state
+                if track_uri in self.app.track_progress:
+                    self.app.track_progress[track_uri]['is_finished'] = True
+                self.root_layout.update_track_ui(track_uri)
+            else:
+                if not location_id:
+                    self.app.show_toast("Error: No Location ID found for this track.")
+                elif not self.app.ap_client:
+                    self.app.show_toast("Error: Not connected to Archipelago.")
 
 # --- MANIFEST ---
 MUSIPELAGO_PLUGIN = {
