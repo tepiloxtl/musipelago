@@ -87,7 +87,9 @@ class GenericAudioPlayer:
                 self._on_end_reached
             )
             
-            self.player.audio_set_volume(self.current_volume)
+            # This coredumps on Fedora 44 now, so I'm disabling this. It should be unnecessary anyway
+            # but, audio
+            # self.player.audio_set_volume(self.current_volume)
             Logger.info("AudioPlayer: VLC Initialized.")
             
         except Exception as e:
