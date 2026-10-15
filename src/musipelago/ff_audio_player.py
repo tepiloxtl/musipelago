@@ -8,7 +8,7 @@ class GenericAudioPlayer:
     def __init__(self, on_finish_callback=None):
         self.player = None
         self.on_finish_callback = on_finish_callback
-        self.volume = 0.5
+        self.volume = 0.1
         self._update_event = None
         self._pending_load_event = None
         self._zombies = [] 
