@@ -61,7 +61,7 @@ class GenericAudioPlayer:
         self.on_finish_callback = on_finish_callback
         self.player = None
         self.instance = None
-        self.current_volume = 50 
+        self.current_volume = 10 
 
         if not VLC_AVAILABLE:
             Logger.critical("AudioPlayer: No Audio Backend found.")

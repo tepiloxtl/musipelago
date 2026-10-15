@@ -602,7 +602,17 @@ class LocalFilesClientHost(AbstractClientHost):
         center_slot = self.root_layout.ids.playback_center
         center_slot.clear_widgets()
         center_slot.add_widget(self.playback_info_widget)
+
         
+        play_folder_button = Button(
+            text="Lire un dossier de musique",
+            size_hint_y=None,
+            height=dp(44),
+        )
+        play_folder_button.bind(on_release=self._choose_music_folder)
+        self.root_layout.add_widget(play_folder_button)
+
+        self.folder_playback_mode = False
         self.root_layout.set_status("Local files loaded. Ready to play.")
 
     def fetch_game_data_threaded(self, game_data: dict):
@@ -817,24 +827,177 @@ class LocalFilesClientHost(AbstractClientHost):
                     self.app.ap_client.send_location_check(location_id)
                 self.root_layout.update_track_ui(track_uri)
                 self.app.show_toast(f"Finished: {self.current_playing_track_title}")
-
         # 3. Advance Queue
         next_index = self.queue_index + 1
         if 0 <= next_index < len(self.playback_queue):
-            Logger.info(f"LocalFiles: Advancing queue to index {next_index}")
             self.queue_index = next_index
             next_track = self.playback_queue[next_index]
             self._play_track_internal(next_track)
+
         else:
             Logger.info("LocalFiles: Queue finished.")
             self.is_playing = False
             self.current_playing_track_uri = None
+            self.current_playing_track_title = None
             if self.playback_info_widget:
-                self.playback_info_widget.track_title = "Finished"
+                self.playback_info_widget.track_title = "Lecture terminée"
                 self.playback_info_widget.progress_value = 100
                 self.playback_info_widget.current_time = "00:00"
             self.playback_queue = []
             self.queue_index = -1
+            self.folder_playback_mode = False
+
+
+
+    def _choose_music_folder(self, *args):
+        """Open a folder picker for direct local music playback."""
+        picker = DirectoryPickerPopup(
+            initial_path=self.backend.root_directory,
+            on_selection=self._load_music_folder,
+        )
+        picker.title = "Choisir un dossier de musique"
+        picker.open()
+
+    def _load_music_folder(self, folder_path):
+        """Load audio files directly from a folder into the playback queue."""
+        extensions = (".mp3", ".flac", ".m4a", ".ogg", ".wma")
+        tracks = []
+        def normalize_uri(value):
+            return os.path.normcase(
+                os.path.normpath(str(value))
+            ).replace("\\", "/")
+
+        progress_uris = {
+            normalize_uri(uri): uri
+            for uri in self.app.track_progress
+        }
+
+
+        try:
+            for filename in sorted(os.listdir(folder_path), key=str.casefold):
+                path = os.path.join(folder_path, filename)
+                if not os.path.isfile(path):
+                    continue
+                if not filename.lower().endswith(extensions):
+                    continue
+
+                title = os.path.splitext(filename)[0]
+                artist = "Artiste inconnu"
+                album_title = os.path.basename(folder_path)
+                duration_ms = 0
+
+                try:
+                    audio = MutagenFile(path)
+                    if audio:
+                        tags = audio.tags
+                        if tags:
+                            title = str(
+                                tags.get("title", [title])[0]
+                            )
+                            artist = str(
+                                tags.get("artist", [artist])[0]
+                            )
+                        info = audio.info
+                        if info and getattr(info, "length", None):
+                            duration_ms = int(info.length * 1000)
+                except Exception as exc:
+                    Logger.warning(
+                        f"Could not read tags for {filename}: {exc}"
+                    )
+
+                # Use a path relative to the configured music root.
+                try:
+                    relative_path = os.path.relpath(
+                        path, self.backend.root_directory
+                    )
+                except ValueError:
+                    self.app.show_toast(
+                        "Choisis un dossier situé dans le dossier musical configuré."
+                    )
+                    return
+
+                uri = progress_uris.get(normalize_uri(relative_path))
+
+                if uri is None:
+                    Logger.warning(
+                        f"Track not registered in Archipelago: {relative_path}"
+                    )
+                    continue
+
+                # Ignorer les morceaux déjà terminés
+                track_data = self.app.track_progress.get(uri)
+
+                if track_data and track_data.get("is_finished", False):
+                    Logger.info(f"Skipping already finished track: {title}")
+                    continue
+                tracks.append(
+                    GenericTrack(
+                        uri=uri,
+                        title=title,
+                        artist=artist,
+                        album_title=album_title,
+                        duration_ms=duration_ms,
+                        service="local",
+                    )
+                )
+
+        except OSError as exc:
+            self.app.show_toast(f"Impossible de lire le dossier : {exc}")
+            return
+
+        if not tracks:
+            self.app.show_toast(
+                "Aucun fichier audio compatible trouvé dans ce dossier."
+            )
+            return
+        self.folder_playback_mode = False
+        self.playback_queue = tracks
+        self.queue_index = 0
+        self._play_track_internal(tracks[0])
+
+
+    def _play_folder_track(self, track_obj):
+        """Play a folder track without applying Archipelago ownership checks."""
+        self.stop_polling()
+
+        path = os.path.normpath(
+            os.path.join(self.backend.root_directory, track_obj.uri)
+        )
+        if not os.path.isfile(path):
+            self.app.show_toast(f"Fichier introuvable : {track_obj.title}")
+            Clock.schedule_once(
+                lambda dt: self._advance_folder_queue(), 0.1
+            )
+            return
+
+        if self.playback_info_widget:
+            self.playback_info_widget.track_title = track_obj.title
+            self.playback_info_widget.artist_album = (
+                f"{track_obj.artist} - {track_obj.album_title}"
+            )
+            self.playback_info_widget.art_source = KIVY_ICON
+            self.playback_info_widget.progress_value = 0
+            self.playback_info_widget.current_time = "00:00"
+
+        self.current_playing_track_uri = track_obj.uri
+        self.current_playing_track_title = track_obj.title
+        self.app.audio_player.play(path)
+        self.is_playing = True
+
+    def _advance_folder_queue(self):
+        """Advance to the next track in the directly selected folder."""
+        next_index = self.queue_index + 1
+        if next_index < len(self.playback_queue):
+            self.queue_index = next_index
+            self._play_folder_track(self.playback_queue[next_index])
+        else:
+            self.playback_queue = []
+            self.queue_index = -1
+            self.current_playing_track_uri = None
+            self.current_playing_track_title = None
+            self.is_playing = False
+            if self.playback_info_widget:
+                self.playback_info_widget.track_title = "Lecture terminée"
 
     def _play_track_internal(self, track_obj: GenericTrack):
         self.stop_polling()
@@ -906,6 +1069,35 @@ class LocalFilesClientHost(AbstractClientHost):
         # 4. Play First Track
         if self.playback_queue:
             self._play_track_internal(self.playback_queue[0])
+    def _play_all_loaded_tracks(self):
+        """Play all tracks from loaded albums in alphabetical order."""
+        tracks = []
+
+        for album_uri in self.app.ordered_album_uris:
+            album = self.app.album_data_cache.get(album_uri)
+            if not album or not album.tracks:
+                continue
+
+            if album_uri not in self.app.owned_albums and not self.app.cheat_mode:
+                continue
+
+            tracks.extend(album.tracks)
+
+        tracks.sort(key=lambda track: track.title.casefold())
+
+        if not tracks:
+            self.app.show_toast("Aucun morceau disponible à lire.")
+            return
+
+        self.playback_queue = tracks
+        self.queue_index = 0
+
+        self.app.show_toast(
+            f"{len(tracks)} morceaux ajoutés à la file de lecture."
+        )
+        self._play_track_internal(self.playback_queue[0])
+
+
 
     def on_play_pause_click(self):
         if self.is_playing:
