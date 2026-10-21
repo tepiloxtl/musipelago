@@ -75,6 +75,7 @@ from kivy.uix.spinner import Spinner
 import asyncio
 import websockets
 import ssl
+import certifi
 
 # --- LOCAL IMPORTS ---
 from musipelago.client_ui_components import GenericPlaybackInfo, ItemMenu, ToastMessage
@@ -789,7 +790,9 @@ class ArchipelagoClient:
     async def run(self):
         Logger.info(f"AP: Async task started. Connecting to {self.uri}...")
         ssl_context = None
-        if self.uri.startswith("wss://"): ssl_context = ssl.create_default_context()
+        if self.uri.startswith("wss://"): ssl_context = ssl.create_default_context(
+            cafile=certifi.where()
+        )
         try:
             async with websockets.connect(self.uri, ssl=ssl_context, max_size=None) as ws:
                 self.ws = ws
