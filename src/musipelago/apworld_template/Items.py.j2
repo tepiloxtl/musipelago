@@ -38,12 +38,12 @@ def create_itempool(world: "MusipelagoWorld") -> List[Item]:
 
     # For this example I'll make it so there is a starting chapter
     # We loop through all the chapters in the my_chapter section
+    print("-------------------------")
+    print(starting_chapter)
+    print("-------------------------")
     for chapter in ap_skeleton_chapters.keys():
         # If the starting chapter equals the chapter we're looking at skip it
         # We skip it since we dont want to add the chapter the player started with to the item pool
-        print("-------------------------")
-        print(starting_chapter)
-        print("-------------------------")
         if starting_chapter == chapter:
             continue
         # Otherwise then we create an item with that name and add it to the item pool
@@ -58,7 +58,7 @@ def create_itempool(world: "MusipelagoWorld") -> List[Item]:
 
     # Then junk items are made
     # Check out the create_junk_items function for more details
-    itempool += create_junk_items(world, get_total_locations(world) - len(itempool) - 1)
+    itempool += create_junk_items(world, get_total_locations(world) - len(itempool) - len(ap_skeleton_chapters))
 
     return itempool
 
