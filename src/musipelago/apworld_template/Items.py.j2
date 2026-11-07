@@ -58,7 +58,7 @@ def create_itempool(world: "MusipelagoWorld") -> List[Item]:
 
     # Then junk items are made
     # Check out the create_junk_items function for more details
-    itempool += create_junk_items(world, get_total_locations(world) - len(itempool) - 1)
+    itempool += create_junk_items(world, get_total_locations(world) - len(itempool) - len(ap_skeleton_chapters))
 
     return itempool
 
